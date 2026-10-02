@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-Bound Field Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        h1 {
+            color: #bb86fc;
+            margin-top: 0;
+        }
+
+        .status {
+            font-size: 1.2rem;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 6px;
+            background-color: #2c2c2c;
+        }
+
+        .granted {
+            color: #03dac6;
+            font-weight: bold;
+        }
+
+        .denied {
+            color: #cf6679;
+            font-weight: bold;
+        }
+
+        .latency {
+            font-size: 1.5rem;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        .log {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            text-align: left;
+            flex-grow: 1;
+            min-height: 400px;
+            /* Taller log for wider screens */
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: #000000;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Field Test</h1>
+            <p>Diagnostics Mode</p>
+            <div id="status" class="status">Connecting to server...</div>
+            <div id="latency" class="latency">...</div>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const latencyEl = document.getElementById('latency');
+        const logEl = document.getElementById('log');
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = `> ${msg}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const pathParts = window.location.pathname.split('/');
+        // e.g. /fieldtest/secret
+        const mode = pathParts[1];
+        const secret = pathParts[2];
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/?mode=${mode}&secret=${secret}`;
+
+        log(`Connecting to WS (mode: ${mode})`);
+
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            try {
+                const deviceInfo = {
+                    type: 'DEVICE_INFO',
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    resolution: `${window.screen.width}x${window.screen.height}`,
+                    userAgent: navigator.userAgent
+                };
+                ws.send(JSON.stringify(deviceInfo));
+            } catch (e) { }
+            statusEl.textContent = 'Connected. Waiting for challenge...';
+            log('WebSocket connection established.');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'CHALLENGE') {
+                    ws.send(JSON.stringify({ type: 'RESPONSE', nonce: data.nonce }));
+                    log(`Received challenge, replied with nonce: ${data.nonce.substring(0, 8)}...`);
+                } else if (data.type === 'LOG') {
+                    log(data.message);
+                } else if (data.type === 'RESULT') {
+                    const rtt = data.minRtt.toFixed(2);
+                    latencyEl.textContent = `Minimum RTT: ${rtt} ms`;
+
+                    if (data.decision === 'ACCESS_GRANTED') {
+                        statusEl.textContent = 'ACCESS GRANTED';
+                        statusEl.className = 'status granted';
+                    } else {
+                        statusEl.textContent = 'ACCESS DENIED';
+                        statusEl.className = 'status denied';
+                    }
+                }
+            } catch (e) {
+                log(`Error parsing message: ${e.message}`);
+                console.error(e);
+            }
+        };
+
+        ws.onclose = () => {
+            if (statusEl.textContent !== 'ACCESS GRANTED' && statusEl.textContent !== 'ACCESS DENIED') {
+                statusEl.textContent = 'Connection closed.';
+            }
+            log('WebSocket connection closed.');
+        };
+
+        ws.onerror = (error) => {
+            statusEl.textContent = 'Connection error.';
+            log('WebSocket error occurred.');
+            console.error(error);
+        };
+    </script>
+</body>
+
+</html>

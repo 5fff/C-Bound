@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-Bound Admin</title>
+    <!-- QR Code Scanning (Self-Hosted) -->
+    <script src="/public/jsQR.min.js"></script>
+
+    <!-- QR Code Generation (Self-Hosted) -->
+    <script src="/public/qrcode.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+            }
+
+            .row-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+
+            .custom-file-upload {
+                width: 100%;
+                text-align: center;
+                box-sizing: border-box;
+            }
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #bb86fc;
+            margin-top: 0;
+        }
+
+        .status {
+            font-size: 1.1rem;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 6px;
+            background-color: #2c2c2c;
+            text-align: center;
+        }
+
+        .granted {
+            color: #03dac6;
+            font-weight: bold;
+        }
+
+        .denied {
+            color: #cf6679;
+            font-weight: bold;
+        }
+
+        .log {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #000000;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .latency {
+            font-size: 1.3rem;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            background: #2c2c2c;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        input[type="file"] {
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+
+        button {
+            background: #bb86fc;
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #a370f7;
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 0.9rem;
+            width: auto;
+        }
+
+        .btn-danger {
+            background: #cf6679;
+        }
+
+        .btn-danger:hover {
+            background: #eb778a;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .toast {
+            display: none;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background: #03dac6;
+            color: #000;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .error-toast {
+            display: none;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background: #cf6679;
+            color: #000;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .row-header {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
+
+        .row-header p {
+            margin: 0;
+        }
+
+        .custom-file-upload {
+            display: inline-block;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            background-color: #333;
+            color: #bbb;
+            font-size: 0.8rem;
+            border: 1px solid #555;
+            transition: all 0.2s;
+        }
+
+        .custom-file-upload:hover {
+            background-color: #444;
+            color: #fff;
+            border-color: #bb86fc;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #aaa;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover {
+            color: #fff;
+        }
+
+        #qrOutput {
+            margin: 20px auto;
+            background: white;
+            padding: 15px;
+            display: inline-block;
+            border-radius: 8px;
+        }
+
+        #qrOutput canvas {
+            display: block;
+        }
+
+        #qrNameDisplay {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 10px;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>C-Bound Admin Control</h1>
+
+        <!-- Admin Config Panel -->
+        <div class="card">
+            <h2>Current Configured Targets</h2>
+            <div class="table-responsive">
+                <table id="urlTable">
+                    <thead>
+                        <tr>
+                            <th>Target Name</th>
+                            <th>Short ID / Link</th>
+                            <th>Target URL</th>
+                            <th>Honeypot URL</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top:30px; font-size: 1.1rem;">Add / Update Target</h3>
+            <p style="margin-bottom: 5px;">Name (e.g., 'VIP Access'):</p>
+            <input type="text" id="nameInput" placeholder="Enter Target Name">
+
+            <div class="row-header">
+                <p>Enter Target URL or</p>
+                <label class="custom-file-upload">
+                    <input type="file" id="targetQrUpload" accept="image/*"
+                        onchange="handleQrUpload(event, 'targetUrlInput')">
+                    📷 Extract from QR Code Image
+                </label>
+            </div>
+            <input type="text" id="targetUrlInput" placeholder="https://...">
+
+            <div class="row-header" style="margin-top: 15px;">
+                <p>Honeypot URL (Optional, fallback if empty) or</p>
+                <label class="custom-file-upload">
+                    <input type="file" id="honeypotQrUpload" accept="image/*"
+                        onchange="handleQrUpload(event, 'honeypotUrlInput')">
+                    📷 Extract from QR Code Image
+                </label>
+            </div>
+            <input type="text" id="honeypotUrlInput" placeholder="https://... (fallback to global default)">
+
+            <div
+                style="margin-top: 15px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong>Show QR Code instead of Redirect</strong><br>
+                    <small style="color: #aaa;">When QR Mode is enabled, the verified client will be presented with a
+                        scannable QR code rather than being automatically redirected.</small>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="showQrCodeToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <canvas id="qrCanvas" style="display:none;"></canvas>
+
+            <div style="margin-top: 15px;">
+                <button id="saveBtn">Save Configuration</button>
+            </div>
+            <div id="toast" class="toast">Saved successfully!</div>
+            <div id="errorToast" class="error-toast">Error saving.</div>
+        </div>
+
+        <!-- Global Config Panel -->
+        <div class="card" style="margin-top:20px;">
+            <h3 style="margin-top:0;">Global Settings</h3>
+            <div class="row-header">
+                <p>Default Honeypot URL (leave empty to disable) or</p>
+                <label class="custom-file-upload">
+                    <input type="file" id="globalHoneypotQrUpload" accept="image/*"
+                        onchange="handleQrUpload(event, 'globalHoneypotInput')">
+                    📷 Extract from QR Code Image
+                </label>
+            </div>
+            <input type="text" id="globalHoneypotInput" placeholder="https://... (leave empty to disable)">
+
+            <p style="margin-top: 15px; margin-bottom: 5px;">Latency Threshold (ms):</p>
+            <input type="number" id="globalLatencyThresholdInput" placeholder="2" min="1" max="3000">
+
+            <div style="margin-top: 15px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong>Global Default QR Mode</strong><br>
+                    <small style="color: #aaa;">Enable QR Mode by default for all newly created targets.</small>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="globalQrModeToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button id="saveGlobalBtn" style="padding: 10px 20px;">Update Global Settings</button>
+            </div>
+            <div id="globalToast" class="toast">Global config updated!</div>
+            <div id="globalErrorToast" class="error-toast">Error updating config.</div>
+        </div>
+
+        <!-- Field Test Panel -->
+        <div class="card">
+            <h2>Live Server Diagnostics</h2>
+            <p style="font-size: 0.9rem; color: #aaa; margin-top: -10px;">Monitoring your current connection latency...
+            </p>
+            <div id="status" class="status">Connecting to server...</div>
+            <div id="latency" class="latency">...</div>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" id="closeModal">&times;</span>
+            <h3 style="margin-top: 0">Generated C-Bound Link</h3>
+            <div id="qrOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        const pathParts = window.location.pathname.split('/');
+        const mode = pathParts[1];
+        const secret = pathParts[2];
+
+        // --- ADMIN API LOGIC ---
+        let currentEditingId = null;
+        let cachedUrls = {};
+        const urlTableBody = document.querySelector('#urlTable tbody');
+        const nameInput = document.getElementById('nameInput');
+        const targetUrlInput = document.getElementById('targetUrlInput');
+        const honeypotUrlInput = document.getElementById('honeypotUrlInput');
+        const showQrCodeToggle = document.getElementById('showQrCodeToggle');
+        const saveBtn = document.getElementById('saveBtn');
+        const toast = document.getElementById('toast');
+        const errorToast = document.getElementById('errorToast');
+        const qrCanvas = document.getElementById('qrCanvas');
+
+        function showMessage(el, text, ms = 3000) {
+            el.textContent = text;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', ms);
+        }
+
+        function escapeHtml(unsafe) {
+            return (unsafe || '').toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Fetch current config
+        const fetchConfig = () => {
+            fetch(`/api/config?secret=${secret}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Unauthorized');
+                    return res.json();
+                })
+                .then(data => {
+                    const globalHoneypotInput = document.getElementById('globalHoneypotInput');
+                    const globalLatencyThresholdInput = document.getElementById('globalLatencyThresholdInput');
+                    const globalQrModeToggle = document.getElementById('globalQrModeToggle');
+                    const showQrCodeToggle = document.getElementById('showQrCodeToggle');
+
+                    if (globalHoneypotInput) {
+                        globalHoneypotInput.value = data.globalHoneypotUrl || '';
+                    }
+                    if (globalLatencyThresholdInput && data.globalLatencyThreshold !== undefined) {
+                        globalLatencyThresholdInput.value = data.globalLatencyThreshold;
+                    }
+                    if (globalQrModeToggle && data.globalQrMode !== undefined) {
+                        globalQrModeToggle.checked = !!data.globalQrMode;
+                        if (showQrCodeToggle && !currentEditingId) {
+                            showQrCodeToggle.checked = !!data.globalQrMode;
+                        }
+                    }
+
+                    cachedUrls = data.urls || {};
+                    urlTableBody.innerHTML = '';
+                    for (const [id, entry] of Object.entries(cachedUrls)) {
+                        const safeName = escapeHtml(entry.name);
+                        const safeTargetUrl = escapeHtml(entry.targetUrl);
+                        const safeHoneypotUrl = entry.honeypotUrl ? escapeHtml(entry.honeypotUrl) : '<i>Global Default</i>';
+                        const safeId = escapeHtml(id);
+                        const qrTag = entry.showQrCode ? '<span style="color:#bb86fc; font-size:0.8rem; margin-left:5px;" title="QR fallback enabled">[QR Mode]</span>' : '';
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${safeName}${qrTag}</strong></td>
+                            <td><code>${safeId}</code><br><small><a href="/?target=${safeId}" target="_blank" style="color:#bb86fc;">Link</a></small></td>
+                            <td style="word-break: break-all;">${safeTargetUrl}</td>
+                            <td style="word-break: break-all; color: #aaa;">${safeHoneypotUrl}</td>
+                            <td>
+                                <button class="btn-small" style="margin-bottom: 5px; background-color: #03dac6; color: #000;" onclick="modifyUrl('${safeId}')">Modify</button><br>
+                                <button class="btn-small" style="margin-bottom: 5px;" onclick="generateQr('${safeId}', '${safeName.replace(/'/g, "\\'")}')">Show QR</button><br>
+                                <button class="btn-small btn-danger" onclick="deleteUrl('${safeId}')">Delete</button>
+                            </td>
+                        `;
+                        urlTableBody.appendChild(tr);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    urlTableBody.innerHTML = '<tr><td colspan="5">Error fetching config. Check secret.</td></tr>';
+                });
+        };
+        fetchConfig();
+
+        // Delete URL
+        window.deleteUrl = (id) => {
+            if (!confirm(`Delete mapping for '${id}'?`)) return;
+            fetch(`/api/config?secret=${secret}`, {
+                method: 'DELETE',
+                body: JSON.stringify({ id }),
+                headers: { 'Content-Type': 'application/json' }
+            }).then(() => fetchConfig())
+                .catch(e => showMessage(errorToast, 'Network error deleting config'));
+        };
+
+        // Modify URL
+        window.modifyUrl = (id) => {
+            const entry = cachedUrls[id];
+            if (!entry) return;
+
+            currentEditingId = id;
+            nameInput.value = entry.name;
+            targetUrlInput.value = entry.targetUrl;
+            honeypotUrlInput.value = entry.honeypotUrl || '';
+            if (showQrCodeToggle) {
+                showQrCodeToggle.checked = !!entry.showQrCode;
+            }
+            saveBtn.textContent = `Update '${id}'`;
+
+            // Scroll to form and highlight
+            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const inputs = [nameInput, targetUrlInput, honeypotUrlInput];
+            inputs.forEach(el => {
+                el.style.transition = 'background-color 0.3s';
+                el.style.backgroundColor = '#3d305a'; // highlight color
+                setTimeout(() => {
+                    el.style.backgroundColor = '#2c2c2c'; // Original color
+                }, 1000);
+            });
+        };
+
+        // Save URL
+        saveBtn.onclick = () => {
+            const name = nameInput.value.trim();
+            let rawUrl = targetUrlInput.value.trim();
+            let honeypotUrl = honeypotUrlInput.value.trim();
+
+            if (!name) return showMessage(errorToast, 'Must provide Target Name');
+            if (!rawUrl) return showMessage(errorToast, 'Must provide Target URL');
+
+            if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
+                rawUrl = 'https://' + rawUrl;
+            }
+
+            let finalUrl;
+            try {
+                // Using new URL().href automatically encodes spaces and special chars
+                finalUrl = new URL(rawUrl).href;
+            } catch (e) {
+                return showMessage(errorToast, 'Invalid Target URL format');
+            }
+
+            let finalHoneypot = null;
+            if (honeypotUrl) {
+                if (!/^https?:\/\//i.test(honeypotUrl)) {
+                    honeypotUrl = 'https://' + honeypotUrl;
+                }
+                try {
+                    finalHoneypot = new URL(honeypotUrl).href;
+                } catch (e) {
+                    return showMessage(errorToast, 'Invalid Honeypot URL format');
+                }
+            }
+
+            saveBtn.textContent = 'Saving...';
+
+            const payload = {
+                name: name,
+                targetUrl: finalUrl,
+                honeypotUrl: finalHoneypot,
+                showQrCode: showQrCodeToggle ? showQrCodeToggle.checked : false
+            };
+            if (currentEditingId) {
+                payload.id = currentEditingId;
+            }
+
+            fetch(`/api/config?secret=${secret}`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' }
+            }).then(async res => {
+                saveBtn.textContent = 'Save Configuration';
+                if (res.ok) {
+                    currentEditingId = null;
+                    showMessage(toast, 'Configuration updated!');
+                    nameInput.value = '';
+                    targetUrlInput.value = '';
+                    honeypotUrlInput.value = '';
+                    const globalQrModeToggle = document.getElementById('globalQrModeToggle');
+                    if (showQrCodeToggle) {
+                        showQrCodeToggle.checked = globalQrModeToggle ? globalQrModeToggle.checked : false;
+                    }
+                    fetchConfig();
+                } else {
+                    const t = await res.text();
+                    showMessage(errorToast, `Error: ${t}`);
+                }
+            }).catch(e => {
+                saveBtn.textContent = 'Save Configuration';
+                showMessage(errorToast, 'Network error saving config');
+            });
+        };
+
+        // Save Global Config
+        document.getElementById('saveGlobalBtn').onclick = () => {
+            const globalHoneypotInput = document.getElementById('globalHoneypotInput');
+            const globalLatencyThresholdInput = document.getElementById('globalLatencyThresholdInput');
+            const saveGlobalBtn = document.getElementById('saveGlobalBtn');
+            const globalToast = document.getElementById('globalToast');
+            const globalErrorToast = document.getElementById('globalErrorToast');
+
+            let hp = document.getElementById('globalHoneypotInput').value.trim();
+            if (hp && !/^https?:\/\//i.test(hp)) hp = 'https://' + hp;
+
+            let finalHp = hp;
+            if (hp) {
+                try {
+                    finalHp = new URL(hp).href;
+                } catch (e) {
+                    return showMessage(globalErrorToast, 'Invalid Global Honeypot URL');
+                }
+            }
+
+            let threshold = parseInt(globalLatencyThresholdInput.value);
+            if (isNaN(threshold) || threshold < 1 || threshold > 3000) return showMessage(globalErrorToast, 'Latency Threshold must be between 1 and 3000');
+
+            const globalQrModeToggle = document.getElementById('globalQrModeToggle');
+            const useGlobalQrMode = globalQrModeToggle ? globalQrModeToggle.checked : false;
+
+            saveGlobalBtn.textContent = 'Saving...';
+            fetch(`/api/config?secret=${secret}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    isGlobalConfig: true,
+                    globalHoneypotUrl: finalHp,
+                    globalLatencyThreshold: threshold,
+                    globalQrMode: useGlobalQrMode
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            }).then(async res => {
+                saveGlobalBtn.textContent = 'Update Global Settings';
+                if (res.ok) {
+                    showMessage(globalToast, 'Global setting updated!');
+                } else {
+                    const t = await res.text();
+                    showMessage(globalErrorToast, `Error: ${t}`);
+                }
+            }).catch(e => {
+                saveGlobalBtn.textContent = 'Update Global Settings';
+                showMessage(globalErrorToast, 'Network error');
+            });
+        };
+
+        // Generic QR Upload Handler
+        window.handleQrUpload = function (e, targetInputId) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const targetToast = targetInputId === 'globalHoneypotInput' ? document.getElementById('globalToast') : toast;
+            const targetErrorToast = targetInputId === 'globalHoneypotInput' ? document.getElementById('globalErrorToast') : errorToast;
+
+            // Resetting file input so the same file could be selected again if needed
+            const resetInput = () => { e.target.value = ''; };
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const scanImage = (scale) => {
+                        qrCanvas.width = img.width * scale;
+                        qrCanvas.height = img.height * scale;
+                        const ctx = qrCanvas.getContext('2d', { willReadFrequently: true });
+
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
+
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.drawImage(img, 0, 0, qrCanvas.width, qrCanvas.height);
+
+                        const imageData = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+                        return jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+                    };
+
+                    // Attempt full size, then downscale incrementally
+                    let code = null;
+                    const scales = [1, 0.75, 0.5, 0.25];
+                    for (const s of scales) {
+                        code = scanImage(s);
+                        if (code && code.data) break;
+                    }
+
+                    resetInput();
+
+                    if (code && code.data) {
+                        try {
+                            let rawUrl = code.data.trim();
+                            if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
+                                rawUrl = 'https://' + rawUrl;
+                            }
+
+                            if (!rawUrl) throw new Error('Empty URL');
+
+                            new URL(rawUrl); // Validate it's a URL
+                            const targetInput = document.getElementById(targetInputId);
+                            targetInput.value = rawUrl;
+
+                            // Visual Feedback: Temporarily highlight the field
+                            targetInput.style.transition = 'background-color 0.3s';
+                            targetInput.style.backgroundColor = '#3d305a'; // Purple highlight
+                            setTimeout(() => {
+                                targetInput.style.backgroundColor = '#2c2c2c'; // Original dark grey
+                            }, 1500);
+
+                        } catch (err) {
+                            showMessage(targetErrorToast, 'QR code detected, but invalid URL format.');
+                        }
+                    } else {
+                        showMessage(targetErrorToast, 'No QR code found in image.');
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // --- QR GENERATION LOGIC ---
+        const qrModal = document.getElementById('qrModal');
+        const closeModal = document.getElementById('closeModal');
+        const qrOutput = document.getElementById('qrOutput');
+
+        window.generateQr = (id, name) => {
+            // Show loading placeholder
+            qrOutput.innerHTML = '<span style="color:#000;">Generating QR Code...</span>';
+            qrModal.style.display = 'flex';
+
+            // Build the full C-Bound Link
+            const protocol = window.location.protocol;
+            const fullLink = `${protocol}//${window.location.host}/?target=${id}`;
+
+            // Generate new QR code off-screen
+            const tempDiv = document.createElement('div');
+            new QRCode(tempDiv, {
+                text: fullLink,
+                width: 256,
+                height: 256,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Wait for QRCode.js to finish drawing synchronously to its internal canvas
+            setTimeout(() => {
+                const qrCanvas = tempDiv.querySelector('canvas');
+                if (!qrCanvas) {
+                    qrOutput.innerHTML = '<span style="color:red">Failed to generate QR.</span>';
+                    return;
+                }
+
+                // Composite the final image
+                const finalCanvas = document.createElement('canvas');
+                const padding = 20;
+                const textHeight = 60; // Increased to fit larger text
+
+                finalCanvas.width = qrCanvas.width + (padding * 2);
+                finalCanvas.height = qrCanvas.height + padding + textHeight; // Bottom padding is built into textHeight
+
+                const ctx = finalCanvas.getContext('2d');
+
+                // Draw white background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+                // Draw QR Code
+                ctx.drawImage(qrCanvas, padding, padding);
+
+                // Draw Target Name Text at the bottom
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 30px "Segoe UI", sans-serif'; // Increased font size from 20px to 30px (50% larger)
+                ctx.textAlign = 'center';
+                // (padding + qrCanvas.height) + 35 is roughly the center of the 60px textHeight area
+                ctx.fillText(name, finalCanvas.width / 2, padding + qrCanvas.height + 40);
+
+                // Convert the composited canvas back into a native image tag so it can be long-pressed/saved
+                const finalImage = document.createElement('img');
+                finalImage.src = finalCanvas.toDataURL('image/png');
+                finalImage.style.maxWidth = '100%';
+                finalImage.style.height = 'auto';
+                finalImage.style.display = 'block';
+                finalImage.style.margin = '0 auto';
+
+                qrOutput.innerHTML = '';
+                qrOutput.appendChild(finalImage);
+            }, 50);
+        };
+
+        closeModal.onclick = () => {
+            qrModal.style.display = 'none';
+        };
+
+        window.onclick = (event) => {
+            if (event.target === qrModal) {
+                qrModal.style.display = 'none';
+            }
+        };
+
+        // --- WEBSOCKET DIAGNOSTICS LOGIC ---
+        const statusEl = document.getElementById('status');
+        const latencyEl = document.getElementById('latency');
+        const logEl = document.getElementById('log');
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = `> ${msg}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/?mode=${mode}&secret=${secret}`;
+
+        log(`Connecting to WS (mode: ${mode})`);
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            try {
+                const deviceInfo = {
+                    type: 'DEVICE_INFO',
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    resolution: `${window.screen.width}x${window.screen.height}`,
+                    userAgent: navigator.userAgent
+                };
+                ws.send(JSON.stringify(deviceInfo));
+            } catch (e) { }
+            statusEl.textContent = 'Connected. Waiting for challenge...';
+            log('WebSocket connection established.');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'CHALLENGE') {
+                    ws.send(JSON.stringify({ type: 'RESPONSE', nonce: data.nonce }));
+                    log(`Received challenge, replied with nonce: ${data.nonce.substring(0, 8)}...`);
+                } else if (data.type === 'LOG') {
+                    log(data.message);
+                } else if (data.type === 'RESULT') {
+                    const rtt = data.minRtt.toFixed(2);
+                    latencyEl.textContent = `Minimum RTT: ${rtt} ms`;
+
+                    if (data.decision === 'ACCESS_GRANTED') {
+                        statusEl.textContent = 'DIAGNOSTIC PASSED';
+                        statusEl.className = 'status granted';
+                    } else {
+                        statusEl.textContent = 'DIAGNOSTIC FAILED';
+                        statusEl.className = 'status denied';
+                    }
+                }
+            } catch (e) {
+                log(`Error parsing message: ${e.message}`);
+                console.error(e);
+            }
+        };
+
+        ws.onclose = () => {
+            if (statusEl.textContent !== 'DIAGNOSTIC PASSED' && statusEl.textContent !== 'DIAGNOSTIC FAILED') {
+                statusEl.textContent = 'Connection closed.';
+            }
+            log('WebSocket connection closed.');
+        };
+
+        ws.onerror = (error) => {
+            statusEl.textContent = 'Connection error.';
+            log('WebSocket error occurred.');
+            console.error(error);
+        };
+    </script>
+</body>
+
+</html>
